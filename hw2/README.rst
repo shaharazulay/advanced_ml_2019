@@ -3,8 +3,8 @@ Markov Networks - Loopy Belief Propogation (LBP)
 **Python implementation for MNIST denoising using LBP networks.**
 
 :Authors: 
-    Shahar Azulay, 039764063
-    Guy Oren, 302764956
+    Shahar Azulay, 039764063::
+    Guy Oren, 302764956::
     Eitan-Hai Mashiah, 206349045
 
 |Python27|_ |Python35|_ |License|_ 

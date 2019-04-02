@@ -9,7 +9,7 @@ Eitan-Hai Mashiah, 206349045
 |Python27|_ |Python35|_ |License|_ 
 
 
-.. image:: docs/lbp.png
+.. image:: docs/diagram.png
 
 .. |License| image:: https://img.shields.io/badge/license-BSD--3--Clause-brightgreen.svg
 .. _License: https://github.com/shaharazulay/traceable-dict/blob/master/LICENSE

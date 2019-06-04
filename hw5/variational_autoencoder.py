@@ -7,11 +7,13 @@
 '''
 from __future__ import print_function
 
-import numpy as np
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+
+import argparse
+import numpy as np
+from functools import reduce
 
 from keras.layers import Input, Dense, Lambda, Conv2D, MaxPooling2D, Flatten, Reshape, UpSampling2D
 from keras.models import Model
@@ -19,7 +21,6 @@ from keras import backend as K
 from keras import metrics
 from keras.datasets import mnist
 
-import argparse
 
 batch_size = 100
 original_dim = 784
@@ -37,12 +38,13 @@ def sampling(args):
 
 
 if __name__ == '__main__':
+    # define the program's optional arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("-w", "--weights", help="Load VAE model's trained weights")
     parser.add_argument("-f", "--fix", action="store_true",
-                        help="Fix the variance vector to constant ones during training")
+                        help="Fix the variance vector to constant ones during training")  # section (f)
     parser.add_argument("-c", "--conv", action="store_true",
-                        help="Train the VAE model with a ConvNet architecture")
+                        help="Train the VAE model with a ConvNet architecture")  # section (g)
     args = parser.parse_args()
 
     if args.conv:
@@ -68,29 +70,24 @@ if __name__ == '__main__':
         # use reparameterization trick to push the sampling out as input
         z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 
-        h_decoded = Dense(intermediate_dim, activation='relu')(z)
-        h_decoded = Dense(shape[1] * shape[2] * shape[3], activation='relu')(h_decoded)
-        h_decoded = Reshape((shape[1], shape[2], shape[3]))(h_decoded)
-        h_decoded = Conv2D(8, (3, 3), activation='relu', padding='same')(h_decoded)
-        h_decoded = UpSampling2D((2, 2))(h_decoded)
-        h_decoded = Conv2D(16, (3, 3), activation='relu', padding='same')(h_decoded)
-        h_decoded = UpSampling2D((2, 2))(h_decoded)
-        x_decoded_mean = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(h_decoded)
+        decoding_layers = [Dense(intermediate_dim, activation='relu'),
+                           Dense(shape[1] * shape[2] * shape[3], activation='relu'),
+                           Reshape((shape[1], shape[2], shape[3])),
+                           Conv2D(8, (3, 3), activation='relu', padding='same'),
+                           UpSampling2D((2, 2)),
+                           Conv2D(16, (3, 3), activation='relu', padding='same'),
+                           UpSampling2D((2, 2)),
+                           Conv2D(1, (3, 3), activation='sigmoid', padding='same')]
+
+        x_decoded_mean = reduce(lambda x, a: a(x), decoding_layers, z)
 
         # instantiate VAE model
         vae = Model(x, x_decoded_mean, name='vae')
 
         # instantiate generator model
         decoder_input = Input(shape=(latent_dim,))
-        _h_decoded = Dense(intermediate_dim, activation='relu')(decoder_input)
-        _h_decoded = Dense(shape[1] * shape[2] * shape[3], activation='relu')(_h_decoded)
-        _h_decoded = Reshape((shape[1], shape[2], shape[3]))(_h_decoded)
-        _h_decoded = Conv2D(8, (3, 3), activation='relu', padding='same')(_h_decoded)
-        _h_decoded = UpSampling2D((2, 2))(_h_decoded)
-        _h_decoded = Conv2D(16, (3, 3), activation='relu', padding='same')(_h_decoded)
-        _h_decoded = UpSampling2D((2, 2))(_h_decoded)
-        _x_decoded_mean = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(_h_decoded)
-        generator = Model(inputs=decoder_input, outputs=_x_decoded_mean)
+        _x_decoded_mean = reduce(lambda x, a: a(x), decoding_layers, decoder_input)
+        generator = Model(decoder_input, _x_decoded_mean)
 
     else:
         x = Input(shape=(original_dim,))
@@ -152,8 +149,6 @@ if __name__ == '__main__':
         x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
         x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
 
-    print(x_train.shape)
-    print(x_test.shape)
     data = (x_test, y_test)
 
     if args.weights:
@@ -183,7 +178,7 @@ if __name__ == '__main__':
     plt.savefig("results/hw5_latent_space" + suffix + ".png")
 
     # section (d)
-    z_sample = np.array([[0.5, 0.2]]) * epsilon_std
+    z_sample = np.array([[0.596971, -0.017497]]) * epsilon_std # np.array([[0.5, 0.2]])
     x_decoded = generator.predict(z_sample)
     plt.imsave("results/hw5_generated_digit" + suffix + ".png",
                x_decoded[0].reshape(digit_size, digit_size))

@@ -47,6 +47,7 @@ if __name__ == '__main__':
                         help="Train the VAE model with a ConvNet architecture")  # section (g)
     args = parser.parse_args()
 
+    # build the autoencoder architecture
     if args.conv:
         suffix = "_conv"
         intermediate_dim = 16
@@ -101,6 +102,7 @@ if __name__ == '__main__':
             z_log_var = Dense(latent_dim)(h)
             suffix = ""
 
+        # use reparameterization trick to push the sampling out as input
         z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
         # we instantiate these layers separately so as to reuse them later
@@ -131,30 +133,26 @@ if __name__ == '__main__':
         xent_loss = original_dim * metrics.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     vae_loss = K.mean(xent_loss + kl_loss)
-
     vae.add_loss(vae_loss)
     vae.compile(optimizer='rmsprop')
-    vae.summary()
+    # vae.summary()
 
     # train the VAE on MNIST digits
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
-
     x_train = x_train.astype('float32') / 255.
     x_test = x_test.astype('float32') / 255.
-
     if args.conv:
         x_train = x_train.reshape((len(x_train), x_train.shape[1], x_train.shape[2], 1))
         x_test = x_test.reshape((len(x_test), x_train.shape[1], x_train.shape[2], 1))
     else:
         x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
         x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
-
     data = (x_test, y_test)
 
+    # train the VAE or load a trained model
     if args.weights:
         vae.load_weights(args.weights)
     else:
-        # train the VAE
         vae.fit(x_train,
                 shuffle=True,
                 epochs=epochs,
@@ -178,7 +176,7 @@ if __name__ == '__main__':
     plt.savefig("results/hw5_latent_space" + suffix + ".png")
 
     # section (d)
-    z_sample = np.array([[0.596971, -0.017497]]) * epsilon_std # np.array([[0.5, 0.2]])
+    z_sample = np.array([[0.5, 0.2]]) * epsilon_std
     x_decoded = generator.predict(z_sample)
     plt.imsave("results/hw5_generated_digit" + suffix + ".png",
                x_decoded[0].reshape(digit_size, digit_size))
@@ -190,7 +188,7 @@ if __name__ == '__main__':
     rep8 = x_test_encoded[i8]
     ps = np.random.random_sample(10)
     points = np.array([rep0, rep8] +
-                      [p*rep0 + (1-p)*rep8 for p in ps])  # points from the line connecting the two
+                      [p*rep0 + (1-p)*rep8 for p in ps])  # sample points from the line connecting the two
     fig = plt.figure()
     for i, point in enumerate(sorted(points.tolist())):
         z_sample = np.array([point]) * epsilon_std
